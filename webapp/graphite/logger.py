@@ -24,6 +24,58 @@ class NullHandler(logging.Handler):
   def emit(self, record):
     pass
 
+
+class UTFFixedSysLogHandler(logging.handlers.SysLogHandler):
+  """
+  A bug-fix sub-class of SysLogHandler that fixes the UTF-8 BOM syslog
+  bug that caused UTF syslog entries to not go to the correct
+  facility.  This is fixed by over-riding the 'emit' definition
+  with one that puts the BOM in the right place (after prio, instead
+  of before it).
+
+  Based on Python 2.7 version of logging.handlers.SysLogHandler.
+
+  Bug Reference: http://bugs.python.org/issue7077
+
+  Purportedly fixed in an upcoming RHEL update-
+  https://bugzilla.redhat.com/show_bug.cgi?id=845802
+  """
+
+  def emit(self, record):
+    """
+    Emit a record.
+
+    The record is formatted, and then sent to the syslog server.  If
+    exception information is present, it is NOT sent to the server.
+    """
+    msg = self.format(record) + '\000'
+    """
+    We need to convert record level to lowercase, maybe this will
+    change in the future.
+    """
+    prio = '<%d>' % self.encodePriority(self.facility,
+                            self.mapPriority(record.levelname))
+    if type(msg) is unicode:
+      msg = msg.encode('utf-8')
+    msg = prio + msg
+    try:
+      if self.unixsocket:
+        try:
+          self.socket.send(msg)
+        except socket.error:
+          self.socket.close()
+          self._connect_unixsocket(self.address)
+          self.socket.send(msg)
+      elif self.socktype == socket.SOCK_DGRAM:
+        self.socket.sendto(msg, self.address)
+      else:
+        self.socket.sendall(msg)
+    except (KeyboardInterrupt, SystemExit):
+      raise
+    except:
+      self.handleError(record)
+
+
 class GraphiteLogger:
   def __init__(self):
     self.nullHandler = NullHandler()
@@ -57,3 +109,12 @@ class GraphiteLogger:
 
 
 log = GraphiteLogger() # import-shared logger instance
+
+# Test program
+if __name__ == '__main__':
+  handler = UTFFixedSysLogHandler(address="/dev/log",facility=logging.handlers.SysLogHandler.LOG_LOCAL3)
+  testLogger = logging.getLogger("test")
+  testLogger.setLevel(logging.INFO)
+  testLogger.addHandler(handler)
+  testLogger.info("test message")
+  print "Sent test message to syslog"
