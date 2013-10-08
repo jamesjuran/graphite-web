@@ -247,6 +247,7 @@ if not LOGGING:
     }
     LOGGING['loggers']['cache'] = {
       'handlers': ['cache'],
+      'level': 'INFO',
     }
 
   if LOG_RENDERING_PERFORMANCE:
@@ -259,6 +260,7 @@ if not LOGGING:
     }
     LOGGING['loggers']['rendering'] = {
       'handlers': ['rendering'],
+      'level': 'INFO',
     }
 
   if LOG_METRIC_ACCESS:
@@ -271,6 +273,7 @@ if not LOGGING:
      }
      LOGGING['loggers']['metric_access'] = {
       'handlers': ['metric_access'],
+      'level': 'INFO',
      }
 
 # Caching shortcuts
